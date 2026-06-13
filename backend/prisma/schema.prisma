@@ -1,0 +1,107 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String         @unique
+  passwordHash  String
+  
+  // Gamification Metrics
+  xp            Int            @default(0)
+  level         Int            @default(1)
+  currentStreak Int            @default(0)
+  longestStreak Int            @default(0)
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relationships
+  tasks         Task[]
+  projects      Project[]
+  focusSessions FocusSession[]
+  roadmapNodes  RoadmapNode[]
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  tasks       Task[]
+}
+
+model Task {
+  id               String     @id @default(uuid())
+  title            String
+  description      String?
+  status           TaskStatus @default(TODO)
+  isRecurringDaily Boolean    @default(false)
+  xpReward         Int        @default(10)
+  completedAt      DateTime?
+  
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relationships
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  
+  project          Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId        String?
+  
+  parentTaskId     String?
+  parentTask       Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks         Task[]     @relation("SubTasks")
+}
+
+model FocusSession {
+  id              String    @id @default(uuid())
+  description     String?
+  startTime       DateTime
+  endTime         DateTime?
+  durationMinutes Int?     
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  // Relationships
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+}
+
+enum NodeStatus {
+  LOCKED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model RoadmapNode {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      NodeStatus @default(LOCKED)
+  xpReward    Int        @default(100)
+  order       Int        @default(0)
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+}
