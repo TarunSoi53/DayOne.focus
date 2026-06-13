@@ -8,7 +8,6 @@ export class GeminiService {
 
   constructor() {
     try {
-      // The SDK automatically picks up process.env.GEMINI_API_KEY
       this.ai = new GoogleGenAI({});
       this.logger.log('Gemini SDK initialized successfully.');
     } catch (error) {
@@ -42,7 +41,6 @@ export class GeminiService {
       return JSON.parse(response.text());
     } catch (error) {
       this.logger.error(`Failed to decompose roadmap for goal: ${goal}`, error);
-      // Fallback response for dev environments without API keys
       return [
         { title: "Core Fundamentals", description: `Understand the basics of ${goal}`, order: 1 },
         { title: "Advanced Concepts", description: `Dive deep into the mechanics of ${goal}`, order: 2 },
@@ -72,6 +70,41 @@ export class GeminiService {
     } catch (error) {
       this.logger.error('Failed to analyze telemetry', error);
       return '> ERROR: Telemetry analysis failed due to neural link desync. Check connection protocols.';
+    }
+  }
+
+  async generatePredictiveTasks(metrics: any): Promise<any[]> {
+    const prompt = `
+      You are a behavioral optimization AI. 
+      Analyze the following 7-14 day user telemetry:
+      ${JSON.stringify(metrics)}
+      
+      Determine where performance is slipping or where the user is ready for progressive adaptation.
+      Generate 2-3 specific, actionable optimization tasks. 
+      The response must be a JSON array matching this exact schema:
+      [
+        { "title": "Task title", "description": "Why this helps", "isAiGenerated": true, "xpReward": 50 }
+      ]
+      Do not include markdown blocks, just raw JSON.
+    `;
+
+    try {
+      if (!this.ai) throw new Error('SDK not initialized');
+
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+      return JSON.parse(response.text());
+    } catch (error) {
+      this.logger.error('Failed to generate predictive tasks', error);
+      return [
+        { title: "Increase morning step target to 15,000", description: "You've hit 14,000 steps 7 days in a row.", isAiGenerated: true, xpReward: 50 },
+        { title: "Schedule 90m deep work block", description: "Project completion rate has dropped by 10%.", isAiGenerated: true, xpReward: 150 }
+      ];
     }
   }
 }

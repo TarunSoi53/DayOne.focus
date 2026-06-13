@@ -16,7 +16,6 @@ export class AiController {
 
   @Post('terminal-analyze')
   async terminalAnalyze(@Body('metrics') metrics: any) {
-    // In a production app, we fetch actual user metrics from the Prisma database
     const telemetryData = metrics || {
       focusHours: [2.5, 3.1, 1.2, 4.0, 5.5, 0.5, 1.0],
       tasksCompleted: 42,
@@ -25,5 +24,17 @@ export class AiController {
     
     const analysis = await this.geminiService.analyzeTerminalTelemetry(telemetryData);
     return { output: analysis };
+  }
+
+  @Post('predictive-tasks')
+  async predictiveTasks(@Body('metrics') metrics: any) {
+    const telemetryData = metrics || {
+      habitConsistency: 'High (14k steps consistently met)',
+      focusTimings: 'Dropping in afternoon blocks',
+      projectCompletion: 'Stalling on Authentication Refactor'
+    };
+
+    const tasks = await this.geminiService.generatePredictiveTasks(telemetryData);
+    return { data: tasks };
   }
 }

@@ -2,54 +2,64 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  message: string;
-  type: 'info' | 'warning' | 'success';
-}
-
-const mockLogs: LogEntry[] = [
-  { id: '1', timestamp: new Date(Date.now() - 3600000).toISOString(), message: 'System initialized. Authentication verified.', type: 'info' },
-  { id: '2', timestamp: new Date(Date.now() - 1800000).toISOString(), message: 'Daily coding focus down 15% compared to yesterday.', type: 'warning' },
-];
-
-export const SystemLog = () => {
-  const [logs] = useState<LogEntry[]>(mockLogs);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export const SystemLog = ({ minimized = false }: { minimized?: boolean }) => {
+  const [logs, setLogs] = useState<string[]>([]);
+  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const initialLogs = [
+      '[SYSTEM] Neural link established.',
+      '[AI_ENGINE] Telemetry handshake successful.',
+      '[METRICS] Variance detected in focus blocks.',
+      '[WARN] Hydration levels suboptimal.',
+    ];
+    setLogs(initialLogs);
+
+    const interval = setInterval(() => {
+      const randomLogs = [
+        '[AI_ANALYSIS] Compiling predictive tasks...',
+        '[SYNC] Roadmap synchronization complete.',
+        '[PERFORMANCE] High velocity detected on Project: Auth.',
+        '[OPTIMIZATION] Suggesting 15m screen break.',
+      ];
+      setLogs(prev => [...prev, randomLogs[Math.floor(Math.random() * randomLogs.length)]]);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  return (
-    <div className="fixed bottom-0 left-0 w-full md:w-[450px] md:left-8 md:bottom-8 z-40">
-      <div className="bg-[#09090b] border border-zinc-800 rounded-sm shadow-2xl overflow-hidden flex flex-col">
-        <div className="bg-zinc-900 border-b border-zinc-800 px-3 py-1.5 flex justify-between items-center">
-          <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">System.Log</span>
-          <div className="flex gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-sm bg-zinc-700"></div>
-            <div className="w-1.5 h-1.5 rounded-sm bg-zinc-700"></div>
-          </div>
-        </div>
-        <div 
-          ref={scrollRef}
-          className="p-3 h-32 overflow-y-auto font-mono text-xs flex flex-col gap-2 scrollbar-none"
-        >
-          {logs.map((log) => (
-            <div key={log.id} className="flex flex-col">
-              <div className="text-zinc-600 text-[10px]">[{new Date(log.timestamp).toLocaleTimeString()}]</div>
-              <div className={`flex gap-2 ${log.type === 'warning' ? 'text-zinc-300' : 'text-zinc-500'}`}>
-                <span className="text-zinc-700">{'>'}</span>
-                <span>{log.message}</span>
-              </div>
+  if (minimized) {
+    return (
+      <div className="h-full flex flex-col p-4 font-mono text-[10px] uppercase tracking-widest text-zinc-500 overflow-hidden relative">
+        <h3 className="text-zinc-100 font-bold mb-4 flex items-center border-b border-zinc-800 pb-2 shrink-0">
+          <span className="w-1.5 h-1.5 bg-[#39d353] rounded-full mr-2 animate-pulse" />
+          Terminal Stream
+        </h3>
+        <div className="flex-1 overflow-y-auto scrollbar-none space-y-2 pb-10">
+          {logs.map((log, i) => (
+            <div key={i} className={`leading-relaxed ${log.includes('[WARN]') ? 'text-red-400' : log.includes('[AI_') ? 'text-purple-400' : 'text-zinc-400'}`}>
+              {log}
             </div>
           ))}
-          <div className="animate-pulse w-2 h-3 bg-zinc-500 mt-1"></div>
+          <div ref={endRef} />
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0d1117] to-transparent pointer-events-none" />
       </div>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-32 bg-[#050505] border-t border-zinc-800 p-4 font-mono text-xs text-zinc-500 overflow-y-auto z-50">
+       <div className="space-y-1">
+         {logs.map((log, i) => (
+            <div key={i}>{log}</div>
+         ))}
+         <div ref={endRef} />
+       </div>
     </div>
   );
-};
+}

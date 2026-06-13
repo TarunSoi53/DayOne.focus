@@ -53,6 +53,8 @@ model Task {
   description      String?
   status           TaskStatus @default(TODO)
   isRecurringDaily Boolean    @default(false)
+  isAiGenerated    Boolean    @default(false)
+  isActiveTarget   Boolean    @default(false)
   xpReward         Int        @default(10)
   completedAt      DateTime?
   
