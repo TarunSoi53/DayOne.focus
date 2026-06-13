@@ -11,16 +11,57 @@ const mockRoadmap = [
 ];
 
 export const RoadmapTracker = () => {
+  const [nodes, setNodes] = React.useState(mockRoadmap);
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
+
+  const handleAiOptimize = async () => {
+    setIsOptimizing(true);
+    try {
+      const apiKey = localStorage.getItem('dayone_ai_key') || '';
+      
+      const res = await fetch('http://localhost:3001/ai/decompose-roadmap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-api-key': apiKey
+        },
+        body: JSON.stringify({ goal: 'Master Fullstack AI Engineering' })
+      });
+      
+      const result = await res.json();
+      if (result.data && Array.isArray(result.data)) {
+        const newNodes = result.data.map((item: any, i: number) => ({
+          id: String(i + 1),
+          title: item.title || 'AI Milestone',
+          status: i === 0 ? 'IN_PROGRESS' : 'LOCKED',
+          xp: 500,
+          estHrs: 10,
+          desc: item.description || '',
+          dependsOn: i > 0 ? String(i) : undefined
+        }));
+        setNodes(newNodes);
+      }
+    } catch (error) {
+      console.error('Failed to optimize path', error);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   return (
-    <div className="border border-zinc-800 rounded-sm bg-[#09090b] p-6 w-full h-full flex flex-col">
-      <div className="flex items-center justify-between mb-8 border-b border-zinc-800 pb-4 shrink-0">
+    <div className="border border-zinc-800 rounded-sm bg-[#09090b] p-6 w-full h-full flex flex-col min-w-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 border-b border-zinc-800 pb-4 shrink-0 gap-4">
         <div>
           <h3 className="text-zinc-100 text-sm font-sans font-medium">Core Curriculum</h3>
           <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest mt-1">AI Engineering Path</p>
         </div>
         <div className="flex gap-2">
-          <button className="text-purple-400 font-mono text-[10px] uppercase tracking-widest border border-purple-500/30 px-3 py-1.5 hover:bg-purple-500/10 transition-colors bg-purple-500/5 rounded-sm">
-            AI Optimize Path
+          <button 
+            onClick={handleAiOptimize}
+            disabled={isOptimizing}
+            className="text-purple-400 font-mono text-[10px] uppercase tracking-widest border border-purple-500/30 px-3 py-1.5 hover:bg-purple-500/10 transition-colors bg-purple-500/5 rounded-sm disabled:opacity-50"
+          >
+            {isOptimizing ? 'Optimizing...' : 'AI Optimize Path'}
           </button>
           <button className="text-[#39d353] font-mono text-[10px] uppercase tracking-widest border border-[#39d353]/30 px-3 py-1.5 hover:bg-[#39d353]/10 transition-colors rounded-sm">
             Adopt Curriculum
@@ -30,7 +71,7 @@ export const RoadmapTracker = () => {
 
       <div className="flex-1 overflow-y-auto scrollbar-none pr-2 pb-12">
         <div className="relative pl-4 space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-zinc-800 before:to-transparent">
-          {mockRoadmap.map((node, index) => (
+          {nodes.map((node, index) => (
             <div key={node.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               {/* Timeline Marker */}
               <div className={`flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#09090b] shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${

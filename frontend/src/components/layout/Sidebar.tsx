@@ -12,6 +12,7 @@ export const Sidebar = () => {
     { name: 'Skill Trees', path: '/roadmap', icon: '◰' },
     { name: 'Analytics & Heatmap', path: '/analytics', icon: '◠' },
     { name: 'System Shell', path: '/cli', icon: '>' },
+    { name: 'Settings (BYOK)', path: '/settings', icon: '⛭' },
   ];
 
   return (

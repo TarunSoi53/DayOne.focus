@@ -21,10 +21,10 @@ export default function RoadmapPage() {
   ];
 
   return (
-    <div className="p-4 md:p-8 space-y-8 pb-32 max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
+    <div className="p-4 md:p-8 space-y-8 pb-32 max-w-7xl mx-auto flex flex-col xl:flex-row gap-8">
       
       {/* Main Roadmap Area */}
-      <div className="flex-1 space-y-8">
+      <div className="flex-1 space-y-8 min-w-0">
         <header className="flex flex-col justify-between border-b border-zinc-800 pb-6 gap-2">
           <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight font-sans">Skill Trees</h1>
           <p className="text-xs text-zinc-500 font-mono uppercase tracking-widest flex items-center">

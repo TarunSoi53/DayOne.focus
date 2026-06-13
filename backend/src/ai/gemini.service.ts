@@ -4,18 +4,17 @@ import { GoogleGenAI } from '@google/genai';
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private ai: GoogleGenAI;
-
-  constructor() {
+  private getClient(apiKey?: string): GoogleGenAI | null {
+    if (!apiKey) return null;
     try {
-      this.ai = new GoogleGenAI({});
-      this.logger.log('Gemini SDK initialized successfully.');
-    } catch (error) {
-      this.logger.warn('Gemini API Key missing or invalid. AI features will run in mock mode.', error);
+      return new GoogleGenAI({ apiKey });
+    } catch (e) {
+      this.logger.warn('Failed to initialize GoogleGenAI with provided key.', e);
+      return null;
     }
   }
 
-  async decomposeRoadmap(goal: string): Promise<any[]> {
+  async decomposeRoadmap(goal: string, apiKey?: string): Promise<any[]> {
     const prompt = `
       You are an expert Computer Science mentor and senior engineer.
       Break down the following broad learning goal into a highly structured JSON array of actionable milestones.
@@ -28,9 +27,10 @@ export class GeminiService {
     `;
 
     try {
-      if (!this.ai) throw new Error('SDK not initialized');
+      const ai = this.getClient(apiKey);
+      if (!ai) throw new Error('SDK not initialized or invalid API key provided');
       
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -40,7 +40,7 @@ export class GeminiService {
       
       return JSON.parse(response.text());
     } catch (error) {
-      this.logger.error(`Failed to decompose roadmap for goal: ${goal}`, error);
+      this.logger.error(`Failed to decompose roadmap for goal: ${goal}. Using mock data fallback.`, error);
       return [
         { title: "Core Fundamentals", description: `Understand the basics of ${goal}`, order: 1 },
         { title: "Advanced Concepts", description: `Dive deep into the mechanics of ${goal}`, order: 2 },
@@ -49,7 +49,7 @@ export class GeminiService {
     }
   }
 
-  async analyzeTerminalTelemetry(metrics: any): Promise<string> {
+  async analyzeTerminalTelemetry(metrics: any, apiKey?: string): Promise<string> {
     const prompt = `
       You are an omnipresent AI system terminal inside a hacker-style productivity dashboard.
       Analyze the following 7-day user telemetry data:
@@ -60,20 +60,21 @@ export class GeminiService {
     `;
 
     try {
-      if (!this.ai) throw new Error('SDK not initialized');
+      const ai = this.getClient(apiKey);
+      if (!ai) throw new Error('SDK not initialized or invalid API key provided');
 
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
       });
       return response.text().trim();
     } catch (error) {
-      this.logger.error('Failed to analyze telemetry', error);
-      return '> ERROR: Telemetry analysis failed due to neural link desync. Check connection protocols.';
+      this.logger.error('Failed to analyze telemetry. Using mock fallback.', error);
+      return '> ERROR: Telemetry analysis failed due to neural link desync. Provide a valid x-ai-api-key header.';
     }
   }
 
-  async generatePredictiveTasks(metrics: any): Promise<any[]> {
+  async generatePredictiveTasks(metrics: any, apiKey?: string): Promise<any[]> {
     const prompt = `
       You are a behavioral optimization AI. 
       Analyze the following 7-14 day user telemetry:
@@ -89,9 +90,10 @@ export class GeminiService {
     `;
 
     try {
-      if (!this.ai) throw new Error('SDK not initialized');
+      const ai = this.getClient(apiKey);
+      if (!ai) throw new Error('SDK not initialized or invalid API key provided');
 
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -100,11 +102,44 @@ export class GeminiService {
       });
       return JSON.parse(response.text());
     } catch (error) {
-      this.logger.error('Failed to generate predictive tasks', error);
+      this.logger.error('Failed to generate predictive tasks. Using mock fallback.', error);
       return [
         { title: "Increase morning step target to 15,000", description: "You've hit 14,000 steps 7 days in a row.", isAiGenerated: true, xpReward: 50 },
         { title: "Schedule 90m deep work block", description: "Project completion rate has dropped by 10%.", isAiGenerated: true, xpReward: 150 }
       ];
+    }
+  }
+  async processIntent(input: string, apiKey?: string): Promise<{ actionLog: string; aiSpeech: string }> {
+    const prompt = `
+      You are the backend AI for DayOne.Focus, a hacker-style productivity OS.
+      The user just typed this command in the system shell: "${input}"
+      
+      Determine what action they are trying to take. Return a JSON object with two fields:
+      - actionLog: A brutalist system log describing what database/system change you are making (e.g., "[Database Write] -> Injected new task vector"). Use bright green [System State] tags if needed.
+      - aiSpeech: What you, the AI agent, say back to the user in a cold, professional, but helpful tone.
+      
+      Respond ONLY with valid JSON.
+      { "actionLog": "...", "aiSpeech": "..." }
+    `;
+
+    try {
+      const ai = this.getClient(apiKey);
+      if (!ai) throw new Error('SDK not initialized or invalid API key provided');
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+      return JSON.parse(response.text());
+    } catch (error) {
+      this.logger.error('Failed to process intent. Using mock fallback.', error);
+      return {
+        actionLog: '[Behavioral Engine] -> Fallback parser engaged. Cannot reach neural core without valid x-ai-api-key.',
+        aiSpeech: `I received your intent: "${input}". However, my connection to the Gemini core is severed. Please provide a valid API key in the settings.`
+      };
     }
   }
 }

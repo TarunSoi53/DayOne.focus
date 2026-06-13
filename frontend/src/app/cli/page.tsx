@@ -5,20 +5,19 @@ import { SystemLog } from '@/components/system/SystemLog';
 
 interface TerminalLine {
   id: string;
-  type: 'input' | 'output' | 'error' | 'success' | 'system' | 'ai' | 'table';
+  type: 'input' | 'system' | 'action' | 'ai';
   content: string;
 }
 
 export default function TerminalPage() {
   const [lines, setLines] = useState<TerminalLine[]>([
-    { id: '1', type: 'system', content: 'DayOne.Focus OS [Version 1.1.0]' },
-    { id: '2', type: 'system', content: '(c) System Corporation. All rights reserved.' },
-    { id: '3', type: 'output', content: ' ' },
-    { id: '4', type: 'output', content: 'System is online. AI Engine is standing by.' },
-    { id: '5', type: 'ai', content: '[AI] Hello. I am your neural assistant. Type `help` for commands or `ai [query]` to talk directly.' },
+    { id: '1', type: 'system', content: 'DayOne.Focus Agent Engine [Version 2.0]' },
+    { id: '2', type: 'system', content: 'Initializing neural link...' },
+    { id: '3', type: 'action', content: '[System Action] -> Connected to Gemini Behavioral Core.' },
+    { id: '4', type: 'ai', content: '[AI] Online. I am your system agent. You can ask me to create tasks, update settings, or log progress using natural language.' },
   ]);
   const [input, setInput] = useState('');
-  const [aiMode, setAiMode] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,147 +26,90 @@ export default function TerminalPage() {
   }, [lines]);
 
   const executeMacro = (cmd: string) => {
-    handleCommand(cmd);
+    if (!isProcessing) handleCommand(cmd);
+  };
+
+  const processAiCommand = async (input: string) => {
+    try {
+      const apiKey = localStorage.getItem('dayone_ai_key') || '';
+      
+      const res = await fetch('http://localhost:3001/ai/process-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-api-key': apiKey
+        },
+        body: JSON.stringify({ input })
+      });
+      
+      const result = await res.json();
+      if (result.data) {
+        return {
+          actionLog: result.data.actionLog || '[System State] -> Intent processed.',
+          aiSpeech: result.data.aiSpeech || 'Intent logged successfully.'
+        };
+      }
+      throw new Error('Invalid response structure');
+    } catch (error) {
+      console.error('AI Intent Processing Error:', error);
+      return {
+        actionLog: '[Behavioral Engine] -> System Offline. Ensure backend is running.',
+        aiSpeech: 'I am currently disconnected from the central intelligence server. Please verify your connection.'
+      };
+    }
   };
 
   const handleCommand = async (cmd: string) => {
     const trimmed = cmd.trim();
     if (!trimmed) return;
 
-    if (trimmed.toLowerCase() === 'exit' && aiMode) {
-      setAiMode(false);
-      setLines(prev => [...prev, { id: Date.now().toString(), type: 'input', content: `AI> exit` }, { id: Date.now().toString() + '1', type: 'system', content: 'Exited AI conversational mode.' }]);
+    if (trimmed.toLowerCase() === 'clear') {
+      setLines([]);
       return;
     }
 
-    const promptPrefix = aiMode ? 'AI>' : 'C:\\User\\Dev>';
-    setLines(prev => [...prev, { id: Date.now().toString(), type: 'input', content: `${promptPrefix} ${trimmed}` }]);
+    setLines(prev => [...prev, { id: Date.now().toString(), type: 'input', content: `C:\\User\\Dev> ${trimmed}` }]);
+    setIsProcessing(true);
 
-    if (aiMode) {
-      // Process everything as an AI query
-      setLines(prev => [...prev, { id: Date.now().toString() + '1', type: 'system', content: '> Thinking...' }]);
-      setTimeout(() => {
-        setLines(prev => prev.filter(l => l.content !== '> Thinking...').concat({
-          id: Date.now().toString() + '2',
-          type: 'ai',
-          content: `[Gemini]: I processed "${trimmed}". Based on your telemetry, you should break this down into 3 smaller sub-tasks. Want me to add them to your Task Vectors? (Y/N)`
-        }));
-      }, 1000);
-      return;
-    }
+    // Initial parsing log
+    const parsingId = Date.now().toString() + 'p';
+    setLines(prev => [...prev, { id: parsingId, type: 'system', content: '> Sending intent to Gemini...' }]);
 
-    const args = trimmed.split(' ');
-    const command = args[0].toLowerCase();
-
-    let response: TerminalLine;
-
-    switch (command) {
-      case 'help':
-        response = { id: Date.now().toString() + '1', type: 'output', content: 
-`Commands:
-  sys.diag      Run a system & telemetry diagnostic
-  task.list     List active tasks in ASCII table
-  task.add      Add a new task (e.g., task.add Fix API)
-  focus.init    Begin deep work neural link
-  ai            Toggle conversational AI mode
-  ai [query]    Single-shot AI query
-  clear         Clear console` 
-        };
-        break;
-      case 'sys.diag':
-        response = { 
-          id: Date.now().toString() + '1', 
-          type: 'success', 
-          content: 
-`[SYSTEM DIAGNOSTICS]
-------------------------------------------------
-ENERGY RESERVES : [||||||||--] 80% (Optimal)
-FOCUS VARIANCE  : 12% (Decreasing)
-STREAK ACTIVE   : 12 Days
-BURN RATE       : Stable
-------------------------------------------------
-[AI ADVISORY]: You are operating at peak efficiency. Recommend initiating deep work.`
-        };
-        break;
-      case 'task.list':
-        response = {
-          id: Date.now().toString() + '1',
-          type: 'table',
-          content:
-`+-----------------------------+-------------+-------+
-| TASK TITLE                  | PROJECT     | PRIO  |
-+-----------------------------+-------------+-------+
-| Configure NestJS JWT Guard  | Auth Refac. | P0    |
-| Update Prisma Auth models   | Auth Refac. | DONE  |
-| Build AI Predictive Logic   | DayOne OS   | P1    |
-| 14,000 Steps Target         | Daily       | P2    |
-+-----------------------------+-------------+-------+`
-        };
-        break;
-      case 'ai':
-        if (args.length === 1) {
-          setAiMode(true);
-          response = { id: Date.now().toString() + '1', type: 'ai', content: '[AI] Conversational mode activated. All input will be sent to Gemini. Type "exit" to leave.' };
-        } else {
-          const query = trimmed.substring(2).trim();
-          setLines(prev => [...prev, { id: Date.now().toString() + '1', type: 'system', content: '> Transmitting...' }]);
-          setTimeout(() => {
-            setLines(prev => prev.filter(l => l.content !== '> Transmitting...').concat({
-              id: Date.now().toString() + '2',
-              type: 'ai',
-              content: `[Gemini Response]: Here is the optimized solution for "${query}". Ensure you implement memoization to reduce time complexity from O(n^2) to O(n).`
-            }));
-          }, 1200);
-          return;
-        }
-        break;
-      case 'task.add':
-        const title = args.slice(1).join(' ');
-        if (!title) {
-          response = { id: Date.now().toString() + '1', type: 'error', content: 'Usage: task.add [title]' };
-        } else {
-          response = { id: Date.now().toString() + '1', type: 'success', content: `[+] Success. Task injected into vector database: ${title}` };
-        }
-        break;
-      case 'focus.init':
-        response = { id: Date.now().toString() + '1', type: 'success', content: '> NEURAL LINK INITIATED. Redirecting to Focus Interface...' };
-        break;
-      case 'clear':
-        setLines([]);
-        return;
-      default:
-        response = { id: Date.now().toString() + '1', type: 'error', content: `'${command}' is not recognized. Type 'help' for available commands.` };
-    }
-
-    setLines(prev => [...prev, response]);
+    // Simulate AI network delay
+    setTimeout(async () => {
+      const { actionLog, aiSpeech } = await processAiCommand(trimmed);
+      
+      setLines(prev => prev.filter(l => l.id !== parsingId).concat([
+        { id: Date.now().toString() + 'a', type: 'action', content: actionLog },
+        { id: Date.now().toString() + 'b', type: 'ai', content: `[AI] ${aiSpeech}` }
+      ]));
+      setIsProcessing(false);
+    }, 1200);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !isProcessing) {
       handleCommand(input);
       setInput('');
     }
   };
 
   return (
-    <div className="h-full flex w-full">
-      <div className="flex-1 flex flex-col bg-[#050505]">
+    <div className="h-full flex w-full overflow-hidden">
+      <div className="flex-1 flex flex-col bg-[#050505] min-w-0">
         {/* Top Macro Bar */}
         <div className="bg-[#0d1117] border-b border-zinc-800 p-4 flex gap-3 shrink-0 overflow-x-auto scrollbar-none">
            <span className="text-zinc-600 font-mono text-xs uppercase tracking-widest flex items-center mr-4">
-              Quick Macros {'>'}
+              Agent Macros {'>'}
            </span>
-           <button onClick={() => executeMacro('sys.diag')} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap">
-             [Run sys.diag]
+           <button onClick={() => executeMacro('Show me my tasks for today')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
+             [List Tasks]
            </button>
-           <button onClick={() => executeMacro('task.list')} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap">
-             [task.list]
+           <button onClick={() => executeMacro('I just finished the authentication task')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
+             [Log Completion]
            </button>
-           <button onClick={() => executeMacro('ai "Predict my burnout risk"')} className="text-purple-400 font-mono text-[10px] uppercase tracking-widest bg-purple-900/10 border border-purple-500/30 px-3 py-1.5 rounded-sm hover:bg-purple-500/20 transition-colors whitespace-nowrap">
-             [AI Burnout Check]
-           </button>
-           <button onClick={() => executeMacro('ai')} className="text-[#39d353] font-mono text-[10px] uppercase tracking-widest bg-[#39d353]/10 border border-[#39d353]/30 px-3 py-1.5 rounded-sm hover:bg-[#39d353]/20 transition-colors whitespace-nowrap">
-             [Toggle AI Mode]
+           <button onClick={() => executeMacro('I feel extremely tired, adjust my goals')} disabled={isProcessing} className="text-purple-400 font-mono text-[10px] uppercase tracking-widest bg-purple-900/10 border border-purple-500/30 px-3 py-1.5 rounded-sm hover:bg-purple-500/20 transition-colors whitespace-nowrap disabled:opacity-50">
+             [Report Fatigue]
            </button>
         </div>
 
@@ -176,24 +118,22 @@ BURN RATE       : Stable
           className="flex-1 overflow-y-auto scrollbar-none text-[#c9d1d9] font-mono p-4 md:p-8 cursor-text selection:bg-[#39d353] selection:text-[#0d1117] relative"
           onClick={() => inputRef.current?.focus()}
         >
-          <div className="max-w-5xl mx-auto flex flex-col gap-2 text-sm md:text-base pb-32">
+          <div className="max-w-5xl mx-auto flex flex-col gap-3 text-sm md:text-base pb-32">
             {lines.map(line => (
               <div key={line.id} className={`whitespace-pre-wrap leading-relaxed ${
-                line.type === 'error' ? 'text-red-400' : 
-                line.type === 'success' ? 'text-[#39d353]' : 
                 line.type === 'input' ? 'text-zinc-500' : 
-                line.type === 'system' ? 'text-blue-400' : 
-                line.type === 'table' ? 'text-zinc-300' :
-                line.type === 'ai' ? 'text-purple-400' :
+                line.type === 'system' ? 'text-zinc-600 italic' : 
+                line.type === 'action' ? 'text-[#39d353] bg-[#39d353]/5 border-l-2 border-[#39d353] pl-3 py-1 my-1' :
+                line.type === 'ai' ? 'text-purple-300' :
                 'text-[#c9d1d9]'
               }`}>
                 {line.content}
               </div>
             ))}
             
-            <div className="flex items-center mt-4">
-              <span className={`mr-2 font-bold ${aiMode ? 'text-purple-400' : 'text-zinc-400'}`}>
-                {aiMode ? 'AI>' : 'C:\\User\\Dev>'}
+            <div className="flex items-center mt-6">
+              <span className={`mr-2 font-bold ${isProcessing ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                {isProcessing ? '...' : 'C:\\User\\Dev>'}
               </span>
               <input
                 ref={inputRef}
@@ -201,7 +141,8 @@ BURN RATE       : Stable
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className={`flex-1 bg-transparent border-none outline-none ${aiMode ? 'text-purple-300' : 'text-[#c9d1d9]'}`}
+                disabled={isProcessing}
+                className="flex-1 bg-transparent border-none outline-none text-[#c9d1d9] disabled:opacity-50"
                 autoFocus
                 spellCheck={false}
                 autoComplete="off"

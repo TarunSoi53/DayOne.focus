@@ -1,11 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const generateMockData = () => Array.from({ length: 365 }, () => Math.floor(Math.random() * 5));
 
 export const ContributionGrid = () => {
-  const data = generateMockData();
+  const [data, setData] = useState<number[]>([]);
+
+  useEffect(() => {
+    setData(generateMockData());
+  }, []);
 
   // GitHub Green Color Scale
   const getIntensityColor = (level: number) => {
@@ -35,7 +39,7 @@ export const ContributionGrid = () => {
               return (
                 <div
                   key={dayIndex}
-                  className={`w-4 h-4 md:w-5 md:h-5 rounded-sm ${getIntensityColor(data[dayIndex])} transition-all duration-200 hover:scale-125 cursor-pointer`}
+                  className={`w-4 h-4 md:w-5 md:h-5 rounded-sm ${getIntensityColor(data[dayIndex] || 0)} transition-all duration-200 hover:scale-125 cursor-pointer`}
                 />
               );
             })}
