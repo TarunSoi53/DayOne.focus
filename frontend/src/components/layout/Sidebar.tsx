@@ -11,6 +11,7 @@ export const Sidebar = () => {
     { name: 'Task Vectors', path: '/tasks', icon: '▤' },
     { name: 'Skill Trees', path: '/roadmap', icon: '◰' },
     { name: 'Analytics & Heatmap', path: '/analytics', icon: '◠' },
+    { name: 'Reminders', path: '/reminders', icon: '◷' },
     { name: 'System Shell', path: '/cli', icon: '>' },
     { name: 'Settings (BYOK)', path: '/settings', icon: '⛭' },
   ];

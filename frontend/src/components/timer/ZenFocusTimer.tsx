@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 
-export const ZenFocusTimer = ({ isFocusMode, setIsFocusMode }: { isFocusMode: boolean, setIsFocusMode: (v: boolean) => void }) => {
+export const ZenFocusTimer = () => {
+  const { isFocusMode, setIsFocusMode } = useWorkspaceStore();
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [showConfig, setShowConfig] = useState(false);

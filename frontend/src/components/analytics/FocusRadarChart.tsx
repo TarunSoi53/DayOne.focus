@@ -2,17 +2,28 @@
 
 import React from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
 
-const data = [
-  { subject: 'Coding', A: 120, fullMark: 150 },
-  { subject: 'Planning', A: 98, fullMark: 150 },
-  { subject: 'Learning', A: 86, fullMark: 150 },
-  { subject: 'Fitness', A: 99, fullMark: 150 },
-  { subject: 'Admin', A: 85, fullMark: 150 },
-  { subject: 'Rest', A: 65, fullMark: 150 },
-];
+import api from '@/lib/api';
 
 export const FocusRadarChart = () => {
+  const { data = [], isLoading } = useQuery<{subject: string, value: number, fullMark: number}[]>({
+    queryKey: ['analytics', 'radar'],
+    queryFn: async () => {
+      const res = await api.get('/analytics/radar');
+      return res.data;
+    },
+    refetchInterval: 10000
+  });
+
+  if (isLoading) {
+    return (
+      <div className="border border-zinc-800 rounded-sm bg-[#09090b] p-6 w-full h-[300px] flex items-center justify-center font-mono text-xs text-zinc-500">
+        Aligning Vectors...
+      </div>
+    );
+  }
+
   return (
     <div className="border border-zinc-800 rounded-sm bg-[#09090b] p-6 w-full h-[300px] flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -30,7 +41,7 @@ export const FocusRadarChart = () => {
             <PolarGrid stroke="#27272a" />
             <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa' }} />
             <PolarRadiusAxis angle={30} domain={[0, 150]} tick={false} axisLine={false} />
-            <Radar name="Focus" dataKey="A" stroke="#39d353" fill="#39d353" fillOpacity={0.2} />
+            <Radar name="Focus" dataKey="value" stroke="#39d353" fill="#39d353" fillOpacity={0.2} />
           </RadarChart>
         </ResponsiveContainer>
       </div>

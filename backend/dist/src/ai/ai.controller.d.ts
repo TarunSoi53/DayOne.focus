@@ -25,4 +25,16 @@ export declare class AiController {
         };
         error?: undefined;
     }>;
+    categorizeTask(body: any, apiKey: string): Promise<{
+        error: string;
+        data?: undefined;
+    } | {
+        data: {
+            title: string;
+            isRecurringDaily: boolean;
+            projectId?: string;
+            isAiGenerated: boolean;
+        };
+        error?: undefined;
+    }>;
 }

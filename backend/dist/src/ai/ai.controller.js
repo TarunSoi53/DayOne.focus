@@ -28,21 +28,17 @@ let AiController = class AiController {
         return { data: milestones };
     }
     async terminalAnalyze(metrics, apiKey) {
-        const telemetryData = metrics || {
-            focusHours: [2.5, 3.1, 1.2, 4.0, 5.5, 0.5, 1.0],
-            tasksCompleted: 42,
-            variance: 'High'
-        };
-        const analysis = await this.geminiService.analyzeTerminalTelemetry(telemetryData, apiKey);
+        if (!metrics) {
+            return { output: '> ERROR: No telemetry data provided. Stats endpoint may be offline.' };
+        }
+        const analysis = await this.geminiService.analyzeTerminalTelemetry(metrics, apiKey);
         return { output: analysis };
     }
     async predictiveTasks(metrics, apiKey) {
-        const telemetryData = metrics || {
-            habitConsistency: 'High (14k steps consistently met)',
-            focusTimings: 'Dropping in afternoon blocks',
-            projectCompletion: 'Stalling on Authentication Refactor'
-        };
-        const tasks = await this.geminiService.generatePredictiveTasks(telemetryData, apiKey);
+        if (!metrics) {
+            return { data: [] };
+        }
+        const tasks = await this.geminiService.generatePredictiveTasks(metrics, apiKey);
         return { data: tasks };
     }
     async processIntent(input, apiKey) {
@@ -50,6 +46,13 @@ let AiController = class AiController {
             return { error: 'Input parameter is required' };
         }
         const result = await this.geminiService.processIntent(input, apiKey);
+        return { data: result };
+    }
+    async categorizeTask(body, apiKey) {
+        if (!body.input) {
+            return { error: 'Input parameter is required' };
+        }
+        const result = await this.geminiService.categorizeTask(body.input, body.projects, apiKey);
         return { data: result };
     }
 };
@@ -86,6 +89,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AiController.prototype, "processIntent", null);
+__decorate([
+    (0, common_1.Post)('categorize-task'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('x-ai-api-key')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "categorizeTask", null);
 exports.AiController = AiController = __decorate([
     (0, common_1.Controller)('ai'),
     __metadata("design:paramtypes", [gemini_service_1.GeminiService])

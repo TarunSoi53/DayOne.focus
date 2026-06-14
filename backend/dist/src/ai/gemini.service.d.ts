@@ -8,4 +8,13 @@ export declare class GeminiService {
         actionLog: string;
         aiSpeech: string;
     }>;
+    categorizeTask(input: string, projects?: {
+        id: string;
+        name: string;
+    }[], apiKey?: string): Promise<{
+        title: string;
+        isRecurringDaily: boolean;
+        projectId?: string;
+        isAiGenerated: boolean;
+    }>;
 }

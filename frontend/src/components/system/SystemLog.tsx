@@ -1,32 +1,25 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+import api from '@/lib/api';
 
 export const SystemLog = ({ minimized = false }: { minimized?: boolean }) => {
-  const [logs, setLogs] = useState<string[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const initialLogs = [
+  const { data: logs = [] } = useQuery<string[]>({
+    queryKey: ['system', 'logs'],
+    queryFn: async () => {
+      const res = await api.get('/system/logs');
+      return res.data;
+    },
+    refetchInterval: 5000,
+    initialData: [
       '[SYSTEM] Neural link established.',
       '[AI_ENGINE] Telemetry handshake successful.',
-      '[METRICS] Variance detected in focus blocks.',
-      '[WARN] Hydration levels suboptimal.',
-    ];
-    setLogs(initialLogs);
-
-    const interval = setInterval(() => {
-      const randomLogs = [
-        '[AI_ANALYSIS] Compiling predictive tasks...',
-        '[SYNC] Roadmap synchronization complete.',
-        '[PERFORMANCE] High velocity detected on Project: Auth.',
-        '[OPTIMIZATION] Suggesting 15m screen break.',
-      ];
-      setLogs(prev => [...prev, randomLogs[Math.floor(Math.random() * randomLogs.length)]]);
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, []);
+    ]
+  });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });

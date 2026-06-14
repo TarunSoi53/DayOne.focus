@@ -14,6 +14,9 @@ const app_service_1 = require("./app.service");
 const ai_module_1 = require("./ai/ai.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 const tasks_module_1 = require("./tasks/tasks.module");
+const roadmap_module_1 = require("./roadmap/roadmap.module");
+const analytics_module_1 = require("./analytics/analytics.module");
+const system_module_1 = require("./system/system.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -23,7 +26,10 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             prisma_module_1.PrismaModule,
             ai_module_1.AiModule,
-            tasks_module_1.TasksModule
+            tasks_module_1.TasksModule,
+            roadmap_module_1.RoadmapModule,
+            analytics_module_1.AnalyticsModule,
+            system_module_1.SystemModule
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
