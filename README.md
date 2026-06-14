@@ -29,8 +29,8 @@ DayOne.Focus is built as a full-stack monorepo. You'll need Node.js (v18+) insta
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/TarunSoi53/DayOne.git
-cd DayOne
+git clone https://github.com/TarunSoi53/DayOne.focus.git
+cd DayOne.focus
 ```
 
 ### 2. Install dependencies
