@@ -38,7 +38,7 @@ export class GeminiService {
         }
       });
       
-      return JSON.parse(response.text());
+      return JSON.parse(response.text || "[]");
     } catch (error) {
       this.logger.error(`Failed to decompose roadmap for goal: ${goal}. Using mock data fallback.`, error);
       return [
@@ -67,7 +67,7 @@ export class GeminiService {
         model: 'gemini-2.5-flash',
         contents: prompt,
       });
-      return response.text().trim();
+      return (response.text || "").trim();
     } catch (error) {
       this.logger.error('Failed to analyze telemetry. Using mock fallback.', error);
       return '> ERROR: Telemetry analysis failed due to neural link desync. Provide a valid x-ai-api-key header.';
@@ -100,7 +100,7 @@ export class GeminiService {
           responseMimeType: "application/json",
         }
       });
-      return JSON.parse(response.text());
+      return JSON.parse(response.text || "[]");
     } catch (error) {
       this.logger.error('Failed to generate predictive tasks. Using mock fallback.', error);
       return [
@@ -133,7 +133,7 @@ export class GeminiService {
           responseMimeType: "application/json",
         }
       });
-      return JSON.parse(response.text());
+      return JSON.parse(response.text || "{}");
     } catch (error) {
       this.logger.error('Failed to process intent. Using mock fallback.', error);
       return {
