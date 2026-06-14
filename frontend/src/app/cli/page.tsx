@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SystemLog } from '@/components/system/SystemLog';
 
+import api from '@/lib/api';
+
 interface TerminalLine {
   id: string;
   type: 'input' | 'system' | 'action' | 'ai';
@@ -30,19 +32,77 @@ export default function TerminalPage() {
   };
 
   const processAiCommand = async (input: string) => {
+    // Handle built-in commands
+    const lower = input.toLowerCase();
+    
+    if (lower === 'help') {
+      return {
+        actionLog: '[System State] -> Help index loaded.',
+        aiSpeech: `Available commands:\n  • Type any natural language to interact with the AI agent\n  • "add task <title>" — Creates a new task\n  • "complete <title>" — Marks a task as done\n  • "show tasks" / "list tasks" — Shows pending tasks\n  • "status" — Shows system status\n  • "clear" — Clears the terminal\n  • Any other text — AI will interpret your intent`
+      };
+    }
+
+    // Quick "add task" shortcut
+    if (lower.startsWith('add task ')) {
+      const title = input.substring(9).trim();
+      if (title) {
+        try {
+          await api.post('/tasks', { title, isRecurringDaily: false });
+          return {
+            actionLog: `[Database Write] -> Injected task vector: "${title}"`,
+            aiSpeech: `Task "${title}" has been created and added to your backlog.`
+          };
+        } catch {
+          return {
+            actionLog: '[Database Error] -> Write operation failed.',
+            aiSpeech: 'Failed to create task. Backend may be offline.'
+          };
+        }
+      }
+    }
+
+    // Quick "show tasks" shortcut
+    if (lower.includes('show task') || lower.includes('list task')) {
+      try {
+        const res = await api.get('/tasks');
+        const tasks = res.data.filter((t: any) => t.status !== 'DONE').slice(0, 8);
+        const taskList = tasks.length > 0 
+          ? tasks.map((t: any, i: number) => `  ${i + 1}. ${t.title}${t.isRecurringDaily ? ' [DAILY]' : ''}${t.isAiGenerated ? ' [AI]' : ''}`).join('\n')
+          : '  No pending tasks found.';
+        return {
+          actionLog: `[Database Read] -> Queried ${tasks.length} pending task vectors.`,
+          aiSpeech: `Pending tasks:\n${taskList}`
+        };
+      } catch {
+        return {
+          actionLog: '[Database Error] -> Read operation failed.',
+          aiSpeech: 'Unable to fetch tasks. Backend may be offline.'
+        };
+      }
+    }
+
+    // Quick "status" shortcut
+    if (lower === 'status') {
+      try {
+        const res = await api.get('/analytics/stats');
+        const s = res.data;
+        return {
+          actionLog: '[System State] -> Full telemetry dump.',
+          aiSpeech: `System Status:\n  • Tasks Completed: ${s.tasksCompleted}\n  • Focus Time: ${s.totalFocusTime}h\n  • Current Streak: ${s.currentStreak} days\n  • Burnout Risk: ${s.burnoutRisk}%\n  • Last 7 Days Activity: ${s.last7DaysTasks} tasks`
+        };
+      } catch {
+        return {
+          actionLog: '[System Error] -> Analytics service unreachable.',
+          aiSpeech: 'Cannot reach analytics. Backend may be offline.'
+        };
+      }
+    }
+
+    // Default: send to AI for intent processing
     try {
-      const apiKey = localStorage.getItem('dayone_ai_key') || '';
+      const res = await api.post('/ai/process-intent', { input });
       
-      const res = await fetch('http://localhost:3001/ai/process-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-ai-api-key': apiKey
-        },
-        body: JSON.stringify({ input })
-      });
-      
-      const result = await res.json();
+      const result = res.data;
       if (result.data) {
         return {
           actionLog: result.data.actionLog || '[System State] -> Intent processed.',
@@ -53,8 +113,8 @@ export default function TerminalPage() {
     } catch (error) {
       console.error('AI Intent Processing Error:', error);
       return {
-        actionLog: '[Behavioral Engine] -> System Offline. Ensure backend is running.',
-        aiSpeech: 'I am currently disconnected from the central intelligence server. Please verify your connection.'
+        actionLog: '[Behavioral Engine] -> System Offline. Ensure backend is running and API key is set.',
+        aiSpeech: 'I am currently disconnected from the Gemini core. Please verify your API key in Settings and ensure the backend is running.'
       };
     }
   };
@@ -102,14 +162,17 @@ export default function TerminalPage() {
            <span className="text-zinc-600 font-mono text-xs uppercase tracking-widest flex items-center mr-4">
               Agent Macros {'>'}
            </span>
-           <button onClick={() => executeMacro('Show me my tasks for today')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
+           <button onClick={() => executeMacro('show tasks')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
              [List Tasks]
            </button>
-           <button onClick={() => executeMacro('I just finished the authentication task')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
-             [Log Completion]
+           <button onClick={() => executeMacro('status')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
+             [Status]
            </button>
-           <button onClick={() => executeMacro('I feel extremely tired, adjust my goals')} disabled={isProcessing} className="text-purple-400 font-mono text-[10px] uppercase tracking-widest bg-purple-900/10 border border-purple-500/30 px-3 py-1.5 rounded-sm hover:bg-purple-500/20 transition-colors whitespace-nowrap disabled:opacity-50">
-             [Report Fatigue]
+           <button onClick={() => executeMacro('What should I focus on today given my current workload?')} disabled={isProcessing} className="text-purple-400 font-mono text-[10px] uppercase tracking-widest bg-purple-900/10 border border-purple-500/30 px-3 py-1.5 rounded-sm hover:bg-purple-500/20 transition-colors whitespace-nowrap disabled:opacity-50">
+             [AI Advice]
+           </button>
+           <button onClick={() => executeMacro('help')} disabled={isProcessing} className="text-zinc-400 font-mono text-[10px] uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-sm hover:bg-zinc-800 hover:text-zinc-200 transition-colors whitespace-nowrap disabled:opacity-50">
+             [Help]
            </button>
         </div>
 

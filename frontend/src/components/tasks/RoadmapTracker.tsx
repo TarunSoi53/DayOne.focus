@@ -2,44 +2,56 @@
 
 import React from 'react';
 
-const mockRoadmap = [
-  { id: '1', title: 'Python Fundamentals', status: 'COMPLETED', xp: 100, estHrs: 15, desc: 'Master core syntax, data types, and control flow.' },
-  { id: '2', title: 'Data Structures & Algorithms', status: 'IN_PROGRESS', xp: 250, estHrs: 40, desc: 'Implement trees, graphs, and master big-O notation.' },
-  { id: '3', title: 'Machine Learning Basics (PyTorch)', status: 'LOCKED', xp: 500, estHrs: 60, desc: 'Build foundational neural networks and understand backpropagation.', dependsOn: '2' },
-  { id: '4', title: 'AI Agent Integration', status: 'LOCKED', xp: 1000, estHrs: 30, desc: 'Connect LLMs to codebases using tools and function calling.', dependsOn: '3' },
-  { id: '5', title: 'Production Deployment', status: 'LOCKED', xp: 500, estHrs: 20, desc: 'Deploy the agent architecture via Docker & AWS.', dependsOn: '4' },
-];
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
 
-export const RoadmapTracker = () => {
-  const [nodes, setNodes] = React.useState(mockRoadmap);
+type RoadmapNode = {
+  id: string;
+  title: string;
+  status: 'LOCKED' | 'IN_PROGRESS' | 'COMPLETED';
+  xpReward: number;
+  estHrs?: number;
+  description?: string;
+  order: number;
+};
+
+export const RoadmapTracker = ({ goalOverride }: { goalOverride?: string }) => {
+  const queryClient = useQueryClient();
   const [isOptimizing, setIsOptimizing] = React.useState(false);
 
+  const { data: nodes = [], isLoading } = useQuery<RoadmapNode[]>({
+    queryKey: ['roadmap'],
+    queryFn: async () => {
+      const res = await api.get('/roadmap');
+      return res.data;
+    },
+    refetchInterval: 5000
+  });
+
   const handleAiOptimize = async () => {
+    const goal = goalOverride?.trim() || 'Master Fullstack AI Engineering';
     setIsOptimizing(true);
     try {
-      const apiKey = localStorage.getItem('dayone_ai_key') || '';
+      const res = await api.post('/ai/decompose-roadmap', { goal });
       
-      const res = await fetch('http://localhost:3001/ai/decompose-roadmap', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-ai-api-key': apiKey
-        },
-        body: JSON.stringify({ goal: 'Master Fullstack AI Engineering' })
-      });
-      
-      const result = await res.json();
+      const result = res.data;
       if (result.data && Array.isArray(result.data)) {
-        const newNodes = result.data.map((item: any, i: number) => ({
-          id: String(i + 1),
-          title: item.title || 'AI Milestone',
-          status: i === 0 ? 'IN_PROGRESS' : 'LOCKED',
-          xp: 500,
-          estHrs: 10,
-          desc: item.description || '',
-          dependsOn: i > 0 ? String(i) : undefined
-        }));
-        setNodes(newNodes);
+        // AI generated new nodes, so we should clear old nodes and create new ones
+        for (const node of nodes) {
+          await api.delete(`/roadmap/${node.id}`);
+        }
+
+        for (let i = 0; i < result.data.length; i++) {
+          const item = result.data[i];
+          await api.post('/roadmap', {
+            title: item.title || 'AI Milestone',
+            description: item.description || '',
+            xpReward: 500,
+            order: i
+          });
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['roadmap'] });
       }
     } catch (error) {
       console.error('Failed to optimize path', error);
@@ -101,23 +113,15 @@ export const RoadmapTracker = () => {
                     {node.status.replace('_', ' ')}
                   </span>
                   <div className="flex gap-2 text-[9px] font-mono text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded-sm">
-                    <span>{node.xp} XP</span>
-                    <span>|</span>
-                    <span>~{node.estHrs}H</span>
+                    <span>{node.xpReward} XP</span>
                   </div>
                 </div>
                 <h4 className={`text-sm font-sans font-medium mb-1 ${node.status === 'LOCKED' ? 'text-zinc-400' : 'text-zinc-100'}`}>
                   {node.title}
                 </h4>
                 <p className="text-xs text-zinc-500 font-sans leading-relaxed">
-                  {node.desc}
+                  {node.description || 'No description provided.'}
                 </p>
-                {node.dependsOn && (
-                  <div className="mt-3 pt-3 border-t border-zinc-800/50 flex items-center text-[9px] font-mono text-orange-500/70 uppercase tracking-widest">
-                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-                    Requires Node {node.dependsOn}
-                  </div>
-                )}
               </div>
             </div>
           ))}

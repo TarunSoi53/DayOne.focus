@@ -16,25 +16,19 @@ export class AiController {
 
   @Post('terminal-analyze')
   async terminalAnalyze(@Body('metrics') metrics: any, @Headers('x-ai-api-key') apiKey: string) {
-    const telemetryData = metrics || {
-      focusHours: [2.5, 3.1, 1.2, 4.0, 5.5, 0.5, 1.0],
-      tasksCompleted: 42,
-      variance: 'High'
-    };
-    
-    const analysis = await this.geminiService.analyzeTerminalTelemetry(telemetryData, apiKey);
+    if (!metrics) {
+      return { output: '> ERROR: No telemetry data provided. Stats endpoint may be offline.' };
+    }
+    const analysis = await this.geminiService.analyzeTerminalTelemetry(metrics, apiKey);
     return { output: analysis };
   }
 
   @Post('predictive-tasks')
   async predictiveTasks(@Body('metrics') metrics: any, @Headers('x-ai-api-key') apiKey: string) {
-    const telemetryData = metrics || {
-      habitConsistency: 'High (14k steps consistently met)',
-      focusTimings: 'Dropping in afternoon blocks',
-      projectCompletion: 'Stalling on Authentication Refactor'
-    };
-
-    const tasks = await this.geminiService.generatePredictiveTasks(telemetryData, apiKey);
+    if (!metrics) {
+      return { data: [] };
+    }
+    const tasks = await this.geminiService.generatePredictiveTasks(metrics, apiKey);
     return { data: tasks };
   }
 
@@ -44,6 +38,15 @@ export class AiController {
       return { error: 'Input parameter is required' };
     }
     const result = await this.geminiService.processIntent(input, apiKey);
+    return { data: result };
+  }
+
+  @Post('categorize-task')
+  async categorizeTask(@Body() body: any, @Headers('x-ai-api-key') apiKey: string) {
+    if (!body.input) {
+      return { error: 'Input parameter is required' };
+    }
+    const result = await this.geminiService.categorizeTask(body.input, body.projects, apiKey);
     return { data: result };
   }
 }

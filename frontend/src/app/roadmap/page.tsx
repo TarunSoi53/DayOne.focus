@@ -2,23 +2,33 @@
 
 import React, { useState } from 'react';
 import { RoadmapTracker } from '@/components/tasks/RoadmapTracker';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 export default function RoadmapPage() {
   const [goal, setGoal] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = () => {
-    if (!goal) return;
-    setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 2000);
-  };
+  const { data: stats } = useQuery({
+    queryKey: ['analytics', 'stats'],
+    queryFn: async () => {
+      const res = await api.get('/analytics/stats');
+      return res.data;
+    }
+  });
 
-  const currentSkills = [
-    { name: 'Python', level: 42, xp: 8500 },
-    { name: 'React', level: 35, xp: 7200 },
-    { name: 'System Design', level: 18, xp: 2100 },
-    { name: 'AI Agents', level: 5, xp: 450 },
-  ];
+  const { data: nodes = [] } = useQuery<any[]>({
+    queryKey: ['roadmap'],
+    queryFn: async () => {
+      const res = await api.get('/roadmap');
+      return res.data;
+    },
+    refetchInterval: 5000
+  });
+
+  // Derive skills from roadmap nodes
+  const completedNodes = nodes.filter(n => n.status === 'COMPLETED').length;
+  const totalXp = completedNodes * 500;
+  const level = Math.floor(totalXp / 1000) + 1;
 
   return (
     <div className="p-4 md:p-8 space-y-8 pb-32 max-w-7xl mx-auto flex flex-col xl:flex-row gap-8">
@@ -43,30 +53,66 @@ export default function RoadmapPage() {
               placeholder="e.g. Master Next.js 14 App Router & Server Actions" 
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && goal.trim()) { /* Will be handled by RoadmapTracker */ } }}
               className="flex-1 bg-[#050505] border border-zinc-800 text-zinc-200 text-sm p-4 rounded-sm outline-none focus:border-purple-500 transition-colors font-mono"
             />
-            <button 
-              onClick={handleGenerate}
-              className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/50 px-8 py-4 rounded-sm font-mono text-xs uppercase tracking-widest transition-colors sm:w-auto w-full flex justify-center items-center"
-            >
-              {isGenerating ? 'Synthesizing...' : 'Decompose'}
-            </button>
           </div>
+          <p className="text-zinc-600 text-[10px] font-mono mt-2 uppercase tracking-widest">
+            Type a goal above then click "AI Optimize Path" in the curriculum below to generate a skill tree.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="h-[600px]">
-             <RoadmapTracker />
+             <RoadmapTracker goalOverride={goal} />
            </div>
-           {/* Instruction / Secondary Tree */}
-           <div className="border border-zinc-800 border-dashed rounded-sm flex flex-col items-center justify-center bg-zinc-900/10 p-8 text-center gap-4">
-              <svg className="w-8 h-8 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-              <span className="font-mono text-zinc-500 text-xs uppercase tracking-widest">
-                 Awaiting New Curriculum Request...
-              </span>
-              <p className="text-zinc-600 font-sans text-sm">
-                 Type a broad goal above. The AI engine will automatically research the optimal learning path and construct a gamified skill tree with XP bounties for each node.
-              </p>
+           {/* Stats Panel */}
+           <div className="border border-zinc-800 rounded-sm bg-[#0d1117] p-6 flex flex-col gap-6">
+              <div>
+                <h3 className="text-zinc-400 font-mono text-xs uppercase tracking-widest mb-4">Learning Progress</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#050505] border border-zinc-800 p-4 rounded-sm text-center">
+                    <p className="text-3xl font-sans text-zinc-100">{completedNodes}</p>
+                    <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest mt-1">Nodes Complete</p>
+                  </div>
+                  <div className="bg-[#050505] border border-zinc-800 p-4 rounded-sm text-center">
+                    <p className="text-3xl font-sans text-zinc-100">{nodes.length}</p>
+                    <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest mt-1">Total Nodes</p>
+                  </div>
+                  <div className="bg-[#050505] border border-[#39d353]/30 p-4 rounded-sm text-center">
+                    <p className="text-3xl font-sans text-[#39d353]">{totalXp}</p>
+                    <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest mt-1">Total XP</p>
+                  </div>
+                  <div className="bg-[#050505] border border-purple-500/30 p-4 rounded-sm text-center">
+                    <p className="text-3xl font-sans text-purple-400">{level}</p>
+                    <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-widest mt-1">Current Level</p>
+                  </div>
+                </div>
+              </div>
+
+              {nodes.length > 0 && (
+                <div>
+                  <h3 className="text-zinc-400 font-mono text-xs uppercase tracking-widest mb-3">Curriculum Progress</h3>
+                  <div className="w-full h-2 bg-zinc-900 rounded-sm overflow-hidden">
+                    <div className="h-full bg-[#39d353] transition-all duration-500" style={{ width: `${nodes.length > 0 ? Math.round((completedNodes / nodes.length) * 100) : 0}%` }} />
+                  </div>
+                  <p className="text-zinc-600 font-mono text-[10px] mt-2 text-right uppercase tracking-widest">
+                    {nodes.length > 0 ? Math.round((completedNodes / nodes.length) * 100) : 0}% Complete
+                  </p>
+                </div>
+              )}
+
+              {nodes.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-8">
+                  <svg className="w-8 h-8 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                  <span className="font-mono text-zinc-500 text-xs uppercase tracking-widest">
+                     Awaiting Curriculum...
+                  </span>
+                  <p className="text-zinc-600 font-sans text-sm max-w-xs">
+                     Type a broad goal above. Click "AI Optimize Path" to have Gemini construct a learning path.
+                  </p>
+                </div>
+              )}
            </div>
         </div>
       </div>
@@ -78,24 +124,34 @@ export default function RoadmapPage() {
             Skill Inventory
          </h3>
          
-         <div className="space-y-6">
-            {currentSkills.map(skill => (
-              <div key={skill.name} className="bg-[#0d1117] border border-zinc-800 rounded-sm p-4">
-                 <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-zinc-300 font-sans text-sm font-medium">{skill.name}</h4>
-                    <span className="text-[#39d353] font-mono text-[10px] uppercase tracking-widest border border-[#39d353]/30 px-1.5 py-0.5 rounded-sm bg-[#39d353]/5">
-                      Lvl {skill.level}
-                    </span>
-                 </div>
-                 <div className="w-full h-1.5 bg-zinc-900 rounded-sm overflow-hidden mb-2">
-                    {/* Mock progress calculation based on XP */}
-                    <div className="h-full bg-zinc-500 w-[70%]" />
-                 </div>
-                 <p className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest text-right">
-                   {skill.xp} / {(skill.level + 1) * 200} XP to next level
-                 </p>
-              </div>
-            ))}
+         <div className="space-y-4">
+            {nodes.length === 0 && (
+              <p className="text-zinc-600 font-mono text-xs italic">No skills tracked yet. Generate a curriculum to see your skill tree.</p>
+            )}
+            {nodes.map(node => {
+              const isComplete = node.status === 'COMPLETED';
+              const isActive = node.status === 'IN_PROGRESS';
+              return (
+                <div key={node.id} className={`bg-[#0d1117] border rounded-sm p-4 ${isComplete ? 'border-[#39d353]/30' : isActive ? 'border-zinc-500' : 'border-zinc-800 opacity-60'}`}>
+                   <div className="flex justify-between items-center mb-2">
+                      <h4 className={`font-sans text-sm font-medium ${isComplete ? 'text-[#39d353]' : 'text-zinc-300'}`}>{node.title}</h4>
+                      <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm border ${
+                        isComplete ? 'text-[#39d353] border-[#39d353]/30 bg-[#39d353]/5' : 
+                        isActive ? 'text-zinc-300 border-zinc-500 bg-zinc-800' : 
+                        'text-zinc-600 border-zinc-800'
+                      }`}>
+                        {isComplete ? 'Mastered' : isActive ? 'Learning' : 'Locked'}
+                      </span>
+                   </div>
+                   <div className="w-full h-1.5 bg-zinc-900 rounded-sm overflow-hidden mb-2">
+                      <div className={`h-full ${isComplete ? 'bg-[#39d353] w-full' : isActive ? 'bg-zinc-500 w-[50%]' : 'bg-zinc-800 w-0'}`} />
+                   </div>
+                   <p className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest text-right">
+                     {isComplete ? node.xpReward : 0} / {node.xpReward} XP
+                   </p>
+                </div>
+              );
+            })}
          </div>
       </div>
       

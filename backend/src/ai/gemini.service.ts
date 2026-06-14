@@ -142,4 +142,47 @@ export class GeminiService {
       };
     }
   }
+
+  async categorizeTask(input: string, projects?: {id: string, name: string}[], apiKey?: string): Promise<{ title: string, isRecurringDaily: boolean, projectId?: string, isAiGenerated: boolean }> {
+    let prompt = `
+      The user just brain-dumped the following text: "${input}"
+      Turn this into a structured task. 
+      If it sounds like a daily routine, set isRecurringDaily to true.
+    `;
+    
+    if (projects && projects.length > 0) {
+      prompt += `
+      Here is the user's list of active projects:
+      ${projects.map(p => `- ID: ${p.id}, Name: ${p.name}`).join('\n')}
+      If the task logically belongs to one of these projects, set "projectId" to its ID. Otherwise set it to null.
+      `;
+    }
+
+    prompt += `
+      Return exactly a JSON object matching this schema:
+      { "title": "Cleaned up task title", "isRecurringDaily": false, "projectId": "string or null", "isAiGenerated": true }
+      Do not include markdown blocks, just raw JSON.
+    `;
+
+    try {
+      const ai = this.getClient(apiKey);
+      if (!ai) throw new Error('SDK not initialized or invalid API key provided');
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+      return JSON.parse(response.text || "{}");
+    } catch (error) {
+      this.logger.error('Failed to categorize task. Using mock fallback.', error);
+      return {
+        title: input.length > 50 ? input.substring(0, 47) + '...' : input,
+        isRecurringDaily: input.toLowerCase().includes('daily') || input.toLowerCase().includes('every day'),
+        isAiGenerated: true
+      };
+    }
+  }
 }
