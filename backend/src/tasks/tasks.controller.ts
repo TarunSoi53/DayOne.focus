@@ -16,7 +16,7 @@ export class TasksController {
   }
 
   @Post()
-  createTask(@Body() data: { title: string, projectId?: string, isRecurringDaily?: boolean, parentTaskId?: string, xpReward?: number }) {
+  createTask(@Body() data: { title: string, projectId?: string, isRecurringDaily?: boolean, parentTaskId?: string, xpReward?: number, reminderAt?: string, isAiGenerated?: boolean }) {
     return this.tasksService.createTask(data);
   }
 

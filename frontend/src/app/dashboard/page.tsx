@@ -1,20 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ContributionGrid } from '@/components/heatmap/ContributionGrid';
 import { ZenFocusTimer } from '@/components/timer/ZenFocusTimer';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export default function DashboardPage() {
-  const [isFocusMode, setIsFocusMode] = useState(false);
-  const [energyLevel, setEnergyLevel] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [mindState, setMindState] = useState<'Foggy' | 'Clear'>('Clear');
-  const [isCalibrating, setIsCalibrating] = useState(false);
+  const { isFocusMode, setIsFocusMode, energyLevel, setEnergyLevel, mindState, setMindState } = useWorkspaceStore();
+  const [isCalibrating, setIsCalibrating] = React.useState(false);
+
+  const { data: tasks = [], isLoading } = useQuery<any[]>({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      const res = await api.get('/tasks');
+      return res.data;
+    },
+    refetchInterval: 10000
+  });
 
   const handleCalibrate = () => {
     setIsCalibrating(true);
     setTimeout(() => setIsCalibrating(false), 1500);
   };
+
+  const completedTasks = tasks.filter(t => t.status === 'DONE').length;
+  const pendingTasks = tasks.filter(t => t.status !== 'DONE');
+  const targetTask = pendingTasks.length > 0 ? pendingTasks[0] : { title: 'All Tasks Completed!', project: { name: 'Relax & Recover' } };
+  const targetProjectName = targetTask.project?.name || 'Uncategorized';
 
   return (
     <div className="p-4 md:p-8 space-y-8 pb-32">
@@ -29,12 +44,12 @@ export default function DashboardPage() {
         
         <div className="flex gap-8 font-mono text-sm text-zinc-400 uppercase tracking-widest">
            <div className="flex flex-col text-right">
-             <span className="text-zinc-600 text-[10px]">Streak</span>
-             <span className="text-[#39d353]">12 Days</span>
+             <span className="text-zinc-600 text-[10px]">Total Tasks</span>
+             <span className="text-[#39d353]">{tasks.length}</span>
            </div>
            <div className="flex flex-col text-right">
-             <span className="text-zinc-600 text-[10px]">Lvl</span>
-             <span className="text-zinc-100">42</span>
+             <span className="text-zinc-600 text-[10px]">Completed</span>
+             <span className="text-zinc-100">{completedTasks}</span>
            </div>
         </div>
       </header>
@@ -48,7 +63,7 @@ export default function DashboardPage() {
               Daily Intelligence Briefing
             </h3>
             <p className="text-zinc-300 text-sm font-sans leading-relaxed">
-              Good morning. You successfully closed 5 architecture tasks yesterday. You currently have <span className="text-zinc-100 font-bold">2 high-priority items</span> carrying over. Your biological rhythm suggests prioritizing the "Authentication Refactor" before 11:00 AM.
+              Good morning. You have successfully closed <span className="text-zinc-100 font-bold">{completedTasks} tasks</span> across your projects. You currently have <span className="text-zinc-100 font-bold">{pendingTasks.length} pending items</span> remaining. Your dashboard is synced with the live database.
             </p>
          </div>
          <button className="relative z-10 shrink-0 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 px-6 py-3 rounded-sm font-mono text-xs uppercase tracking-widest transition-colors">
@@ -111,17 +126,8 @@ export default function DashboardPage() {
         <span className="font-mono text-[10px] uppercase tracking-widest text-[#39d353] mb-2">Current Target Vector</span>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            {energyLevel === 'Low' || mindState === 'Foggy' ? (
-              <>
-                 <h2 className="text-zinc-100 text-xl font-medium font-sans mb-1">Update README with API Specs</h2>
-                 <p className="text-zinc-500 text-sm font-sans">Project: Foodiee Monorepo (Low Friction)</p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-zinc-100 text-xl font-medium font-sans mb-1">Configure NestJS JWT Guard</h2>
-                <p className="text-zinc-500 text-sm font-sans">Project: Authentication Refactor</p>
-              </>
-            )}
+            <h2 className="text-zinc-100 text-xl font-medium font-sans mb-1">{isLoading ? 'Loading target...' : targetTask.title}</h2>
+            <p className="text-zinc-500 text-sm font-sans">Project: {targetProjectName}</p>
           </div>
           <Link href="/tasks" className="text-[#39d353] font-mono text-xs uppercase tracking-widest border border-[#39d353]/30 px-4 py-2 hover:bg-[#39d353]/10 transition-colors text-center">
             View in Backlog
@@ -133,7 +139,7 @@ export default function DashboardPage() {
          <div className="space-y-4">
            <h3 className="font-mono text-xs text-zinc-500 uppercase tracking-widest">Neural Link Timer</h3>
            <div className="h-[250px] border border-zinc-800 rounded-sm overflow-hidden">
-              <ZenFocusTimer isFocusMode={isFocusMode} setIsFocusMode={setIsFocusMode} />
+              <ZenFocusTimer />
            </div>
          </div>
          <div className="space-y-4">
@@ -141,6 +147,39 @@ export default function DashboardPage() {
            <ContributionGrid />
          </div>
       </div>
+
+      {/* Upcoming Reminders */}
+      {tasks.filter(t => t.reminderAt && t.status !== 'DONE').length > 0 && (
+        <div className="bg-[#0d1117] border border-yellow-500/20 p-6 rounded-sm">
+          <h3 className="text-yellow-400 font-mono text-xs uppercase tracking-widest mb-4 flex items-center">
+            <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse" />
+            Upcoming Reminders
+          </h3>
+          <div className="space-y-3">
+            {tasks
+              .filter(t => t.reminderAt && t.status !== 'DONE')
+              .sort((a: any, b: any) => new Date(a.reminderAt).getTime() - new Date(b.reminderAt).getTime())
+              .slice(0, 3)
+              .map((t: any) => {
+                const isArrived = new Date().getTime() >= new Date(t.reminderAt).getTime();
+                return (
+                  <div key={t.id} className={`flex items-center justify-between p-3 rounded-sm border ${isArrived ? 'border-red-500/30 bg-red-500/5' : 'border-zinc-800 bg-[#050505]'}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isArrived ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`} />
+                      <span className="text-zinc-300 font-sans text-sm">{t.title}</span>
+                    </div>
+                    <span className={`font-mono text-[10px] uppercase tracking-widest ${isArrived ? 'text-red-400' : 'text-zinc-500'}`}>
+                      {isArrived ? 'NOW' : new Date(t.reminderAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          <Link href="/reminders" className="block text-center mt-4 text-yellow-500/70 hover:text-yellow-400 font-mono text-[10px] uppercase tracking-widest transition-colors">
+            View All Reminders →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

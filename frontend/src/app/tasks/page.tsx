@@ -2,14 +2,65 @@
 
 import React, { useState } from 'react';
 import { TaskWorkspace } from '@/components/tasks/TaskWorkspace';
+import api from '@/lib/api';
+import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function TasksPage() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isAddingTask, setIsAddingTask] = useState(false);
+  const { isAddingTask, setIsAddingTask } = useWorkspaceStore();
+  const queryClient = useQueryClient();
 
-  const handleAIOptimize = () => {
+  const { data: tasks = [] } = useQuery<any[]>({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      const res = await api.get('/tasks');
+      return res.data;
+    },
+    refetchInterval: 5000
+  });
+
+  const handleAIOptimize = async () => {
     setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 2000);
+    try {
+      // Send real telemetry to AI
+      const completedToday = tasks.filter(t => {
+        if (t.status !== 'DONE') return false;
+        const d = new Date(t.updatedAt);
+        const now = new Date();
+        return d.toDateString() === now.toDateString();
+      }).length;
+      
+      const metrics = {
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter(t => t.status === 'DONE').length,
+        pendingTasks: tasks.filter(t => t.status !== 'DONE').length,
+        completedToday,
+        projects: tasks.filter(t => t.projectId).length,
+        dailyQuests: tasks.filter(t => t.isRecurringDaily).length,
+      };
+
+      const res = await api.post('/ai/predictive-tasks', { metrics });
+      if (res.status === 200 || res.status === 201) {
+        const generatedTasks = res.data.data;
+        if (Array.isArray(generatedTasks)) {
+          for (const t of generatedTasks) {
+            await api.post('/tasks', {
+              title: t.title,
+              description: t.description,
+              isAiGenerated: true,
+              xpReward: t.xpReward || 50
+            });
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -37,7 +88,7 @@ export default function TasksPage() {
       </header>
 
       <div className="flex-1 min-h-[600px]">
-         <TaskWorkspace isAddingTask={isAddingTask} setIsAddingTask={setIsAddingTask} />
+         <TaskWorkspace />
       </div>
     </div>
   );

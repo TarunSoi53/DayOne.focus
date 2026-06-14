@@ -23,6 +23,42 @@ export class TasksService {
 
   async getTasks() {
     const userId = await this.getDefaultUserId();
+
+    // Daily Quest Regeneration Logic
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const oldDailies = await this.prisma.task.findMany({
+      where: {
+        userId,
+        isRecurringDaily: true,
+        status: 'DONE',
+        updatedAt: { lt: today }
+      }
+    });
+
+    for (const oldDaily of oldDailies) {
+      // 1. Mark old one as not recurring anymore so it becomes just historical
+      await this.prisma.task.update({
+        where: { id: oldDaily.id },
+        data: { isRecurringDaily: false }
+      });
+
+      // 2. Clone a fresh one for today
+      await this.prisma.task.create({
+        data: {
+          title: oldDaily.title,
+          description: oldDaily.description,
+          userId: oldDaily.userId,
+          isRecurringDaily: true,
+          status: 'TODO',
+          xpReward: oldDaily.xpReward,
+          isAiGenerated: oldDaily.isAiGenerated,
+          projectId: oldDaily.projectId
+        }
+      });
+    }
+
     return this.prisma.task.findMany({
       where: { userId },
       include: {
@@ -46,14 +82,21 @@ export class TasksService {
     });
   }
 
-  async createTask(data: { title: string, projectId?: string, isRecurringDaily?: boolean, parentTaskId?: string, xpReward?: number }) {
+  async createTask(data: { title: string, projectId?: string, isRecurringDaily?: boolean, parentTaskId?: string, xpReward?: number, reminderAt?: string, isAiGenerated?: boolean }) {
     const userId = await this.getDefaultUserId();
-    return this.prisma.task.create({
-      data: {
-        ...data,
-        userId,
-      }
-    });
+    const taskData: any = {
+      title: data.title,
+      userId,
+      projectId: data.projectId || undefined,
+      isRecurringDaily: data.isRecurringDaily || false,
+      parentTaskId: data.parentTaskId || undefined,
+      xpReward: data.xpReward || 10,
+      isAiGenerated: data.isAiGenerated || false,
+    };
+    if (data.reminderAt) {
+      taskData.reminderAt = new Date(data.reminderAt);
+    }
+    return this.prisma.task.create({ data: taskData });
   }
 
   async updateTask(id: string, data: Partial<Task>) {
