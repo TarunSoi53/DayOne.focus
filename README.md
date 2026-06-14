@@ -4,7 +4,7 @@
   <p><strong>A Gamified, AI-Powered Productivity Operating System for Hackers & Builders.</strong></p>
 </div>
 
-![DayOne.Focus OS](https://via.placeholder.com/1200x600/0d1117/39d353?text=DayOne.Focus+OS)
+![DayOne.Focus OS](https://placehold.co/1200x600/0d1117/39d353?text=DayOne.Focus+OS)
 
 DayOne.Focus is a next-generation productivity dashboard that fuses gamification, brutalist hacker aesthetics, and advanced AI automation. It acts as your personal "neural link" to organize tasks, manage focus sessions, track telemetry, and dynamically generate learning roadmaps.
 
@@ -29,8 +29,8 @@ DayOne.Focus is built as a full-stack monorepo. You'll need Node.js (v18+) insta
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/DayOneFocus.git
-cd DayOneFocus
+git clone https://github.com/TarunSoi53/DayOne.git
+cd DayOne
 ```
 
 ### 2. Install dependencies
