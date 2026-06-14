@@ -5,13 +5,19 @@ import { AppService } from './app.service';
 import { AiModule } from './ai/ai.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TasksModule } from './tasks/tasks.module';
+import { RoadmapModule } from './roadmap/roadmap.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { SystemModule } from './system/system.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AiModule,
-    TasksModule
+    TasksModule,
+    RoadmapModule,
+    AnalyticsModule,
+    SystemModule
   ],
   controllers: [AppController],
   providers: [AppService],
